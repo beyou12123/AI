@@ -1,2 +1,9 @@
-python-telegram-bot
+python-telegram-bot[job-queue]
+google-genai
+langchain
+langchain-community
+langchain-core
+langchain-text-splitters
+pypdf
+rank_bm25
 httpx
