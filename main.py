@@ -6,7 +6,7 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-# --- الإعدادات (ضع بياناتك الجديدة هنا) ---
+# --- الإعدادات الثابتة (التوكن الجديد والمفاتيح) ---
 BOT_TOKEN = "8399888762:AAGnUZWmHqaU6s0EE7-bnGsIE7PTUx7hRIE"
 API_KEYS = [
     "AIzaSyCU1guXTcpzNKBsiwjS-3PgCcIUSLkG52s",
@@ -18,26 +18,27 @@ API_KEYS = [
 current_key_index = 0
 
 async def verify_single_key(key, index):
-    """ فحص مفتاح واحد وإعطاء تقرير دقيق """
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={key}"
-    payload = {"contents": [{"parts": [{"text": "test"}]}]}
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    """ فحص المفاتيح باستخدام المسار المستقر v1 """
+    # تحديث الرابط إلى v1 وتغيير الموديل إلى gemini-2.0-flash لضمان القبول
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key={key}"
+    payload = {"contents": [{"parts": [{"text": "hi"}]}]}
+    async with httpx.AsyncClient(timeout=15.0) as client:
         try:
             r = await client.post(url, json=payload)
             if r.status_code == 200:
-                return f"✅ المفتاح {index}: سليم وشغال."
+                return f"✅ المفتاح {index}: سليم وشغال 100%"
             else:
-                error_detail = r.json().get('error', {}).get('message', 'خطأ مجهول')
-                return f"❌ المفتاح {index}: معطل (السبب: {error_detail})"
+                error_msg = r.json().get('error', {}).get('message', 'فشل الطلب')
+                return f"❌ المفتاح {index}: معطل (السبب: {error_msg})"
         except Exception as e:
             return f"⚠️ المفتاح {index}: فشل اتصال ({str(e)})"
 
 async def ask_gemini(prompt):
     global current_key_index
-    # محاولة التنقل بين المفاتيح عند الفشل
     for _ in range(len(API_KEYS)):
         key = API_KEYS[current_key_index]
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={key}"
+        # استخدام النسخة v1 المستقرة
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key={key}"
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
         
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -58,7 +59,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     query = update.message.text
     if query == "/test":
-        await update.message.reply_text("🔎 جاري فحص كافة المفاتيح الآن...")
+        await update.message.reply_text("🔎 جاري فحص كافة المفاتيح بالمسار الجديد v1...")
         reports = []
         for i, k in enumerate(API_KEYS):
             res = await verify_single_key(k, i+1)
@@ -73,14 +74,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode=ParseMode.HTML)
 
 def main():
-    # [span_1](start_span)drop_pending_updates=True تضمن عدم وجود تصادم مع أي بوت قديم[span_1](end_span)
+    # استخدام drop_pending_updates=True ضروري جداً لمنع أي Conflict
     app = Application.builder().token(BOT_TOKEN).build()
     
-    app.add_handler(CommandHandler("start", lambda u,c: u.message.reply_text("🚀 بوت الاختبار جاهز.\nأرسل أي رسالة للتجربة أو /test لفحص المفاتيح.")))
+    app.add_handler(CommandHandler("start", lambda u,c: u.message.reply_text("🚀 بوت الاختبار المطور جاهز.\nأرسل /test لفحص المفاتيح بالمسار المستقر.")))
     app.add_handler(CommandHandler("test", handle_message))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    print("🔄 البوت بدأ العمل بنظام تنظيف الجلسات...")
+    print("🔄 البوت يعمل الآن بالمسار المستقر v1...")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
